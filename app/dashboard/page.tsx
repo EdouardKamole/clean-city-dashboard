@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icons } from "@/components/icons";
 import { StatsCard } from "@/components/stats-card";
-import { ActivityCard, ActivityItem } from "@/components/activity-card"; // Modified import
-import { PickupChart } from "@/components/pickup-chart";
-import { PickupMap } from "@/components/pickup-map";
+import { ActivityCard, ActivityItem } from "@/components/activity-card";
 import {
   getFirestore,
   collection,
@@ -19,6 +17,17 @@ import {
   where,
 } from "firebase/firestore";
 import app from "@/firebase";
+import { auth } from "@/firebase";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 export default function DashboardPage() {
   const [totalUsers, setTotalUsers] = useState(0);
@@ -28,6 +37,7 @@ export default function DashboardPage() {
   const [pickupLocations, setPickupLocations] = useState([]);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [latestPickupStatus, setLatestPickupStatus] = useState("");
+  const router = useRouter(); // Initialize useRouter
 
   useEffect(() => {
     async function fetchData() {
@@ -115,6 +125,16 @@ export default function DashboardPage() {
 
     fetchData();
   }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push("/login"); // Navigate to login page after logout
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Handle logout error (e.g., display an error message)
+    }
+  };
 
   return (
     <div className="container py-6">

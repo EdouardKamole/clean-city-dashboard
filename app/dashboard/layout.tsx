@@ -1,21 +1,31 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Icons } from "@/components/icons"
+import type React from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Icons } from "@/components/icons";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { auth } from "@/firebase";
+import { signOut } from "firebase/auth";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(false)
-  const pathname = usePathname()
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
 
   const routes = [
     {
@@ -34,9 +44,20 @@ export default function DashboardLayout({
       href: "/dashboard/pickup-requests",
       label: "Trash Pickup Requests",
       icon: <Icons.trash className="mr-2 h-4 w-4" />,
-      active: pathname === "/dashboard/pickup-requests" || pathname.startsWith("/dashboard/pickup-requests/"),
+      active:
+        pathname === "/dashboard/pickup-requests" ||
+        pathname.startsWith("/dashboard/pickup-requests/"),
     },
-  ]
+  ];
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -68,7 +89,10 @@ export default function DashboardLayout({
                 </nav>
               </SheetContent>
             </Sheet>
-            <Link href="/dashboard" className="flex items-center gap-2 font-bold">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 font-bold"
+            >
               <Icons.trash className="h-6 w-6 text-primary" />
               <span className="hidden md:inline-block">Trash Pickup Admin</span>
             </Link>
@@ -87,14 +111,29 @@ export default function DashboardLayout({
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon">
-              <Icons.user className="h-5 w-5" />
-              <span className="sr-only">User</span>
-            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Icons.user className="h-5 w-5" />
+                  <span className="sr-only">User</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>User Settings</DialogTitle>
+                  <DialogDescription>
+                    Manage your account preferences
+                  </DialogDescription>
+                </DialogHeader>
+                <Button variant="destructive" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </header>
       <main className="flex-1">{children}</main>
     </div>
-  )
+  );
 }

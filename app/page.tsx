@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
 import app from "@/firebase";
+import { Loader2 } from "lucide-react";
 
 interface User {
   email: string | null;
@@ -10,6 +11,7 @@ interface User {
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const auth = getAuth(app);
@@ -17,6 +19,7 @@ export default function Home() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       console.log(currentUser);
+      setIsLoading(false); // Set loading to false after auth check
 
       if (!currentUser) {
         redirect("/login");
@@ -26,5 +29,9 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
-  return null;
+  return isLoading ? (
+    <div className="w-screen min-h-screen flex items-center justify-center">
+      <Loader2 color="green" className="w-10 h-10 animate-spin" />
+    </div>
+  ) : null;
 }
