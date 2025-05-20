@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Icons } from "@/components/icons";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/firebase";
+import { signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
+import { auth, googleAuthProvider } from "@/firebase";
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -35,6 +35,20 @@ export function LoginForm() {
     } catch (error: any) {
       setError(error.message);
       console.error("Error signing in:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function hanleGoogleAuth() {
+    try {
+      const provider = googleAuthProvider;
+      await signInWithPopup(auth, provider);
+
+      router.push("/dashboard");
+      console.log("Google sign-up/in successful");
+    } catch (error) {
+      console.error("Google sign-in error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +108,12 @@ export function LoginForm() {
           </span>
         </div>
       </div>
-      <Button variant="outline" type="button" disabled={isLoading}>
+      <Button
+        onClick={hanleGoogleAuth}
+        variant="outline"
+        type="button"
+        disabled={isLoading}
+      >
         {isLoading ? (
           <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
         ) : (
