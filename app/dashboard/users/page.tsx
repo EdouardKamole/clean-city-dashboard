@@ -108,7 +108,6 @@ export default function UsersPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Pickup Requests</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -120,11 +119,10 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
 
-                  <TableCell>{user.requestCount}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild>
+                    <Button variant="secondary" size="sm" asChild>
                       <Link href={`/dashboard/users/${user.id}`}>
-                        View Requests
+                        View Details
                       </Link>
                     </Button>
                   </TableCell>

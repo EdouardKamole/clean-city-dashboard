@@ -209,9 +209,9 @@ export default function UserDetailsPage({
                 Role
               </div>
               <div className="flex items-center gap-2">
-                <span>{user.role.toUpperCase()}</span>
+                <span>{user.role}</span>
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
                   onClick={handleRoleToggle}
                   disabled={roleUpdating}

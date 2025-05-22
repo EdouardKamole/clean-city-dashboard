@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { auth } from "@/firebase";
 import { signOut } from "firebase/auth";
+import { Truck } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -93,8 +94,8 @@ export default function DashboardLayout({
               href="/dashboard"
               className="flex items-center gap-2 font-bold"
             >
-              <Icons.trash className="h-6 w-6 text-primary" />
-              <span className="hidden md:inline-block">Trash Pickup Admin</span>
+              <Truck color="green" />
+              <span className="hidden md:inline-block">My Clean City</span>
             </Link>
           </div>
           <nav className="hidden gap-6 md:flex">
