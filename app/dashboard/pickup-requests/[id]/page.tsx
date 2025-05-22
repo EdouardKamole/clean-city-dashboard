@@ -34,7 +34,6 @@ import {
   getDocs,
 } from "firebase/firestore";
 import app from "@/firebase";
-import { use } from "react";
 import { Loader2 } from "lucide-react";
 
 interface PickupRequest {
@@ -65,6 +64,7 @@ export default function PickupRequestDetailsPage({ params }: Props) {
   const [pickupRequestDetails, setPickupRequestDetails] =
     useState<PickupRequest | null>(null);
   const [status, setStatus] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>(""); // new state
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
@@ -106,6 +106,7 @@ export default function PickupRequestDetailsPage({ params }: Props) {
             timestamp, // Store as string
           } as PickupRequest);
           setStatus(data.status);
+          setSelectedStatus(data.status); // Initialize selectedStatus
 
           // Fetch user's display name based on email
           const userEmail = data.email;
@@ -139,19 +140,19 @@ export default function PickupRequestDetailsPage({ params }: Props) {
     fetchPickupRequestDetails();
   }, [params.id, authChecked]);
 
-  const handleStatusChange = async (newStatus: string) => {
+  const handleStatusChange = async () => {
     try {
       setLoading(true);
       const db = getFirestore(app);
       const pickupRequestDocRef = doc(db, "pickup_requests", params.id);
 
-      await updateDoc(pickupRequestDocRef, { status: newStatus });
+      await updateDoc(pickupRequestDocRef, { status: selectedStatus }); // Use selectedStatus
 
-      setStatus(newStatus);
+      setStatus(selectedStatus); // Update status state
 
       setPickupRequestDetails((prevDetails) => {
         if (prevDetails) {
-          return { ...prevDetails, status: newStatus };
+          return { ...prevDetails, status: selectedStatus };
         }
         return prevDetails;
       });
@@ -193,7 +194,12 @@ export default function PickupRequestDetailsPage({ params }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={status} onValueChange={handleStatusChange}>
+          <Select
+            value={selectedStatus}
+            onValueChange={(value) => setSelectedStatus(value)}
+          >
+            {" "}
+            {/* Update selectedStatus */}
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -204,6 +210,8 @@ export default function PickupRequestDetailsPage({ params }: Props) {
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
+          <Button onClick={handleStatusChange}>Update Status</Button>{" "}
+          {/* Add update button */}
         </div>
       </div>
 

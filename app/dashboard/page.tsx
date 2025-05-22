@@ -17,17 +17,9 @@ import {
   where,
 } from "firebase/firestore";
 import app from "@/firebase";
-import { auth } from "@/firebase";
-import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { checkUserRole } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
   const [totalUsers, setTotalUsers] = useState(0);
@@ -37,10 +29,21 @@ export default function DashboardPage() {
   const [pickupLocations, setPickupLocations] = useState([]);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [latestPickupStatus, setLatestPickupStatus] = useState("");
+  const [loading, setLoading] = useState(true);
   const router = useRouter(); // Initialize useRouter
 
   useEffect(() => {
     async function fetchData() {
+      const { isAdmin } = await checkUserRole();
+
+      if (!isAdmin) {
+        // Redirect to login if not an admin or not authenticated
+        router.push("/login");
+        return;
+      }
+
+      setLoading(false);
+
       try {
         const db = getFirestore(app);
 
@@ -71,7 +74,7 @@ export default function DashboardPage() {
         let totalWeight = 0;
         pickupRequestsSnapshot.forEach((doc) => {
           const data = doc.data();
-          totalWeight += parseFloat(data.estimatedWeight || 0); // Ensure it's a number
+          totalWeight += parseFloat(data.estimatedWeight || 0);
         });
         setWasteCollected(totalWeight);
 
@@ -90,7 +93,7 @@ export default function DashboardPage() {
         // Fetch recent activity (last 5 pickup requests)
         const recentActivityQuery = query(
           collection(db, "pickup_requests"),
-          orderBy("timestamp", "desc"), // Assuming you have a timestamp field
+          orderBy("timestamp", "desc"),
           limit(5)
         );
         const recentActivitySnapshot = await getDocs(recentActivityQuery);
@@ -99,8 +102,8 @@ export default function DashboardPage() {
             const data = doc.data();
             return {
               id: doc.id,
-              text: `Pickup request ${data.status} at ${data.address}`, // Customize as needed
-              date: data.timestamp.toDate().toLocaleDateString(), // Format the date
+              text: `Pickup request ${data.status} at ${data.address}`,
+              date: data.timestamp.toDate().toLocaleDateString(),
             };
           });
         setRecentActivity(recentActivityData);
@@ -126,15 +129,12 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.push("/login"); // Navigate to login page after logout
-    } catch (error) {
-      console.error("Logout error:", error);
-      // Handle logout error (e.g., display an error message)
-    }
-  };
+  if (loading)
+    return (
+      <div className="w-screen min-h-screen flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin" />
+      </div>
+    );
 
   return (
     <div className="container py-6">

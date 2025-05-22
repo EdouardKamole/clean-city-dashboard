@@ -23,6 +23,8 @@ import { Icons } from "@/components/icons";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 import app from "@/firebase"; // Import the Firebase app instance
 import { Loader2 } from "lucide-react";
+import { checkUserRole } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface User {
   id: string;
@@ -37,8 +39,18 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const router = useRouter();
+
   useEffect(() => {
     async function fetchUsers() {
+      const { isAdmin } = await checkUserRole();
+
+      if (!isAdmin) {
+        // Redirect to login if not an admin or not authenticated
+        router.push("/login");
+        return;
+      }
+
       try {
         const db = getFirestore(app);
         const usersCollection = collection(db, "users"); // Replace "users" with your collection name
@@ -81,20 +93,6 @@ export default function UsersPage() {
           <h2 className="text-3xl font-bold tracking-tight">Users</h2>
           <p className="text-muted-foreground">Manage your application users</p>
         </div>
-        {/* <div className="flex items-center gap-2">
-          <div className="relative">
-            <Icons.search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search users..."
-              className="w-full pl-8 md:w-[300px]"
-            />
-          </div>
-          <Button>
-            <Icons.add className="mr-2 h-4 w-4" />
-            Add User
-          </Button>
-        </div> */}
       </div>
 
       <Card>

@@ -19,8 +19,8 @@ export function SignUpForm() {
     const formData = new FormData(event.currentTarget);
 
     const name = formData.get("name") as string;
-    const email = formData.get("name") as string;
-    const password = formData.get("name") as string;
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
 
     try {
       const userCredential = await createUserWithEmailAndPassword(
@@ -36,7 +36,8 @@ export function SignUpForm() {
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email: user.email,
-        name: name, // Store the name
+        displayName: name,
+        role: "user",
       });
 
       router.push("/login");
@@ -61,9 +62,9 @@ export function SignUpForm() {
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email: user.email,
-        name: user.displayName || "Google User",
+        displayName: user.displayName || "Google User",
+        role: "user",
       });
-      //}
 
       router.push("/dashboard");
       console.log("Google sign-up/in successful");

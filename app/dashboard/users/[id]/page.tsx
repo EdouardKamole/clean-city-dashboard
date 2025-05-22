@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,9 +28,12 @@ import {
   getDocs,
   query,
   where,
+  updateDoc,
 } from "firebase/firestore";
 import app from "@/firebase";
 import { Loader2 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast"; // Assuming you have a toast component for notifications
+import { checkUserRole } from "@/lib/utils";
 
 interface User {
   id: string;
@@ -38,6 +42,7 @@ interface User {
   location: string;
   joinedDate: string;
   phone: string;
+  role: string; // Added role field
 }
 
 interface Request {
@@ -57,9 +62,20 @@ export default function UserDetailsPage({
   const [user, setUser] = useState<User | null>(null);
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
+  const [roleUpdating, setRoleUpdating] = useState(false);
+
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchUserData() {
+      const { isAdmin } = await checkUserRole();
+
+      if (!isAdmin) {
+        // Redirect to login if not an admin or not authenticated
+        router.push("/login");
+        return;
+      }
+
       try {
         const db = getFirestore(app);
         const userDocRef = doc(db, "users", params.id);
@@ -69,18 +85,16 @@ export default function UserDetailsPage({
           setUser({
             id: userDocSnap.id,
             ...userDocSnap.data(),
-          } as User); // Type assertion
+          } as User);
         } else {
           setUser(null);
         }
 
-        // Fetch user's pickup requests from the pickup_requests collection
-        // using a query to filter by userId
         const pickupRequestsCollectionRef = collection(db, "pickup_requests");
         const q = query(
           pickupRequestsCollectionRef,
           where("userId", "==", params.id)
-        ); // Filter by userId
+        );
         const pickupRequestsSnapshot = await getDocs(q);
         const pickupRequestsList: Request[] = pickupRequestsSnapshot.docs.map(
           (doc) => ({
@@ -91,6 +105,11 @@ export default function UserDetailsPage({
         setRequests(pickupRequestsList);
       } catch (error) {
         console.error("Error fetching user data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch user data.",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
@@ -98,6 +117,38 @@ export default function UserDetailsPage({
 
     fetchUserData();
   }, [params.id]);
+
+  // Function to toggle user role
+  const handleRoleToggle = async () => {
+    if (!user) return;
+
+    setRoleUpdating(true);
+    try {
+      const db = getFirestore(app);
+      const userDocRef = doc(db, "users", user.id);
+      const newRole = user.role === "admin" ? "user" : "admin";
+
+      // Update the role in Firestore
+      await updateDoc(userDocRef, { role: newRole });
+
+      // Update local state
+      setUser({ ...user, role: newRole });
+
+      toast({
+        title: "Success",
+        description: `User role updated to ${newRole}.`,
+      });
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update user role.",
+        variant: "destructive",
+      });
+    } finally {
+      setRoleUpdating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -152,6 +203,30 @@ export default function UserDetailsPage({
                 Email
               </div>
               <div>{user.email}</div>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-muted-foreground">
+                Role
+              </div>
+              <div className="flex items-center gap-2">
+                <span>{user.role.toUpperCase()}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRoleToggle}
+                  disabled={roleUpdating}
+                >
+                  {roleUpdating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      {user?.role === "admin"
+                        ? "Demote to User"
+                        : "Promote to Admin"}
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

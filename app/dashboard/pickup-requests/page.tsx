@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -19,18 +18,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Icons } from "@/components/icons";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
 import app from "@/firebase";
 import { Timestamp } from "firebase/firestore"; // Import Timestamp
 import { Loader2 } from "lucide-react";
+import { checkUserRole } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface PickupRequest {
   id: string;
   email: string;
   address: string;
   status: string;
-  timestamp: Timestamp; // Change type to Timestamp
+  timestamp: Timestamp;
   customer: string;
 }
 
@@ -38,8 +38,17 @@ export default function PickupRequestsPage() {
   const [pickupRequests, setPickupRequests] = useState<PickupRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const router = useRouter();
+
   useEffect(() => {
     async function fetchPickupRequests() {
+      const { isAdmin } = await checkUserRole();
+
+      if (!isAdmin) {
+        // Redirect to login if not an admin or not authenticated
+        router.push("/login");
+        return;
+      }
       try {
         const db = getFirestore(app);
         const pickupRequestsCollection = collection(db, "pickup_requests");
@@ -99,20 +108,6 @@ export default function PickupRequestsPage() {
             Manage all trash pickup requests
           </p>
         </div>
-        {/* <div className="flex items-center gap-2">
-          <div className="relative">
-            <Icons.search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search requests..."
-              className="w-full pl-8 md:w-[300px]"
-            />
-          </div>
-          <Button>
-            <Icons.add className="mr-2 h-4 w-4" />
-            New Request
-          </Button>
-        </div> */}
       </div>
 
       <Card>

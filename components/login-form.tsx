@@ -23,8 +23,6 @@ export function LoginForm() {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    console.log(email, password);
-
     try {
       setIsLoading(true);
       await signInWithEmailAndPassword(auth, email, password);
