@@ -19,7 +19,7 @@ export default function Home() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       console.log(currentUser);
-      setIsLoading(false); // Set loading to false after auth check
+      setIsLoading(false);
 
       if (!currentUser) {
         redirect("/login");
