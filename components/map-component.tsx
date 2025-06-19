@@ -28,8 +28,6 @@ export function MapComponent({ center, zoom }: MapComponentProps) {
   const routingControlRef = useRef<L.Routing.Control | null>(null);
 
   useEffect(() => {
-    // Fix for Leaflet's default icon path issue
-    // @ts-ignore
     delete (L.Icon.Default.prototype as any)._getIconUrl;
 
     L.Icon.Default.mergeOptions({
@@ -43,7 +41,7 @@ export function MapComponent({ center, zoom }: MapComponentProps) {
     // Custom ORS router options
     const orsRouterOptions: ExtendedOSRMOptions = {
       serviceUrl: "https://api.openrouteservice.org/v2/directions/driving-car",
-      timeout: 30 * 1000, // 30 seconds
+      timeout: 30 * 1000,
       urlParameters: {
         overview: "full",
         geometries: "geojson",
@@ -112,7 +110,7 @@ export function MapComponent({ center, zoom }: MapComponentProps) {
               totalTime: data.routes[0].summary.duration,
             },
           };
-          console.log("Route found:", route);
+
           callback.call(context, null, [route]);
         })
         .catch((error) => {
