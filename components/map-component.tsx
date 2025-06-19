@@ -139,30 +139,22 @@ export function MapComponent({ center, zoom }: MapComponentProps) {
             .addTo(map)
             .bindPopup("Your Location")
             .openPopup();
-          console.log("User location marker added at:", [lat, lng]);
 
           // Add marker for pickup location
           const pickupMarker = L.marker([center.lat, center.lng])
             .addTo(map)
             .bindPopup("Pickup Location");
-          console.log("Pickup location marker added at:", [
-            center.lat,
-            center.lng,
-          ]);
 
           // Add routing control
           if (routingControlRef.current) {
             map.removeControl(routingControlRef.current);
           }
 
-          const useORS = !!process.env.NEXT_PUBLIC_ORS_API_KEY;
-          console.log("Using ORS:", useORS);
+          const useORS =
+            "5b3ce3597851110001cf624862ba9d9ce4314f088c7a3b8fec0f957e";
 
           routingControlRef.current = L.Routing.control({
-            waypoints: [
-              L.latLng(lat, lng), // User location
-              L.latLng(center.lat, center.lng), // Pickup location
-            ],
+            waypoints: [L.latLng(lat, lng), L.latLng(center.lat, center.lng)],
             router: useORS
               ? orsRouter
               : L.Routing.osrmv1({
@@ -197,19 +189,13 @@ export function MapComponent({ center, zoom }: MapComponentProps) {
           });
 
           // Log when route is found
-          routingControlRef.current.on("routesfound", (e: any) => {
-            console.log("Route found event:", e.routes);
-          });
+          routingControlRef.current.on("routesfound", (e: any) => {});
         } else {
           // Show only pickup location marker
           L.marker([center.lat, center.lng])
             .addTo(map)
             .bindPopup("Pickup Location")
             .openPopup();
-          console.log("Fallback: Only pickup location marker added at:", [
-            center.lat,
-            center.lng,
-          ]);
         }
       }
     };
@@ -218,7 +204,7 @@ export function MapComponent({ center, zoom }: MapComponentProps) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude: userLat, longitude: userLng } = position.coords;
-          console.log("Geolocation success:", { userLat, userLng });
+
           initializeMap(userLat, userLng, true);
         },
         (error) => {
@@ -227,7 +213,6 @@ export function MapComponent({ center, zoom }: MapComponentProps) {
         }
       );
     } else {
-      console.warn("Geolocation not supported");
       initializeMap(center.lat, center.lng);
     }
 
