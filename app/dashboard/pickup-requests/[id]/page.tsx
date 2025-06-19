@@ -35,6 +35,7 @@ import {
 } from "firebase/firestore";
 import app from "@/firebase";
 import { Loader2 } from "lucide-react";
+import { useParams } from "next/navigation"; // Import useParams
 
 interface PickupRequest {
   id: string;
@@ -52,15 +53,8 @@ interface PickupRequest {
   };
 }
 
-interface Params {
-  id: string;
-}
-
-interface Props {
-  params: Params;
-}
-
-export default function PickupRequestDetailsPage({ params }: Props) {
+export default function PickupRequestDetailsPage() {
+  // Remove { params }: Props from function signature
   const [pickupRequestDetails, setPickupRequestDetails] =
     useState<PickupRequest | null>(null);
   const [status, setStatus] = useState<string>("");
@@ -68,6 +62,9 @@ export default function PickupRequestDetailsPage({ params }: Props) {
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   const [displayName, setDisplayName] = useState<string | null>(null);
+
+  const params = useParams(); // Use useParams hook
+  const id = params.id as string; // Access id directly from params
 
   useEffect(() => {
     const auth = getAuth(app);
@@ -88,7 +85,7 @@ export default function PickupRequestDetailsPage({ params }: Props) {
       try {
         setLoading(true);
         const db = getFirestore(app);
-        const pickupRequestDocRef = doc(db, "pickup_requests", params.id);
+        const pickupRequestDocRef = doc(db, "pickup_requests", id); // Use unwrapped id
 
         const pickupRequestDocSnap = await getDoc(pickupRequestDocRef);
 
@@ -138,13 +135,13 @@ export default function PickupRequestDetailsPage({ params }: Props) {
     }
 
     fetchPickupRequestDetails();
-  }, [params.id, authChecked]);
+  }, [id, authChecked]); // Use unwrapped id in dependency array
 
   const handleStatusChange = async () => {
     try {
       setLoading(true);
       const db = getFirestore(app);
-      const pickupRequestDocRef = doc(db, "pickup_requests", params.id);
+      const pickupRequestDocRef = doc(db, "pickup_requests", id); // Use unwrapped id
 
       await updateDoc(pickupRequestDocRef, { status: selectedStatus }); // Use selectedStatus
 
@@ -186,7 +183,7 @@ export default function PickupRequestDetailsPage({ params }: Props) {
               </Button>
             </Link>
             <h2 className="text-3xl font-bold tracking-tight">
-              Trash Pickup Request #{params.id}
+              Trash Pickup Request #{id}
             </h2>
           </div>
           <p className="text-muted-foreground">
@@ -279,7 +276,7 @@ export default function PickupRequestDetailsPage({ params }: Props) {
             <CardTitle>Location</CardTitle>
             <CardDescription>Pickup location details</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-2 lg:p-4">
             <div>
               <div className="text-sm font-medium text-muted-foreground">
                 Address
@@ -289,7 +286,7 @@ export default function PickupRequestDetailsPage({ params }: Props) {
                 {pickupRequestDetails.address}
               </div>
             </div>
-            <div className="h-[300px] w-full overflow-hidden rounded-md border">
+            <div className="h-[300px] lg:h-[600px] w-full overflow-hidden rounded-md border">
               <MapComponent
                 center={{
                   lat: pickupRequestDetails.latitude,

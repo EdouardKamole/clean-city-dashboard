@@ -18,9 +18,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+} from "firebase/firestore";
 import app from "@/firebase";
-import { Timestamp } from "firebase/firestore"; // Import Timestamp
+import { Timestamp } from "firebase/firestore";
 import { Loader2 } from "lucide-react";
 import { checkUserRole } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -45,14 +51,14 @@ export default function PickupRequestsPage() {
       const { isAdmin } = await checkUserRole();
 
       if (!isAdmin) {
-        // Redirect to login if not an admin or not authenticated
         router.push("/login");
         return;
       }
       try {
         const db = getFirestore(app);
         const pickupRequestsCollection = collection(db, "pickup_requests");
-        const pickupRequestsSnapshot = await getDocs(pickupRequestsCollection);
+        const q = query(pickupRequestsCollection, orderBy("timestamp", "desc"));
+        const pickupRequestsSnapshot = await getDocs(q);
         const pickupRequestsList: PickupRequest[] =
           pickupRequestsSnapshot.docs.map((doc) => {
             const data = doc.data();
@@ -61,7 +67,7 @@ export default function PickupRequestsPage() {
               email: data.email,
               address: data.address,
               status: data.status,
-              timestamp: data.timestamp, // Keep the Timestamp object
+              timestamp: data.timestamp,
               customer: data.customer,
             } as PickupRequest;
           });
@@ -86,7 +92,7 @@ export default function PickupRequestsPage() {
 
   const formatDate = (timestamp: Timestamp) => {
     // Function to format the Timestamp
-    const date = timestamp.toDate(); // Convert to JavaScript Date object
+    const date = timestamp.toDate();
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
