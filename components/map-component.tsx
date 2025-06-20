@@ -1,20 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
 import "leaflet-routing-machine";
+import dynamic from "next/dynamic";
 
-// Extend RoutingControlOptions to include createMarker
 interface ExtendedRoutingControlOptions
   extends L.Routing.RoutingControlOptions {
   createMarker?: (i: number, wp: L.Routing.Waypoint, n: number) => L.Marker;
-}
-
-// Extend OSRMOptions to include urlParameters
-interface ExtendedOSRMOptions extends L.Routing.OSRMOptions {
-  urlParameters?: Record<string, string>;
 }
 
 interface MapComponentProps {
@@ -28,193 +23,158 @@ export function MapComponent({ center, zoom }: MapComponentProps) {
   const routingControlRef = useRef<L.Routing.Control | null>(null);
 
   useEffect(() => {
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    if (!mapRef.current || mapInstanceRef.current) return;
 
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
     L.Icon.Default.mergeOptions({
       iconRetinaUrl:
         "https://i.postimg.cc/TwPdf2Tx/Pngtree-red-location-icon-sign-with-18125743.png",
       iconUrl:
         "https://i.postimg.cc/TwPdf2Tx/Pngtree-red-location-icon-sign-with-18125743.png",
-      shadowUrl: "/leaflet/marker-shadow.png",
+      shadowUrl: undefined,
     });
 
-    // Custom ORS router options
-    const orsRouterOptions: ExtendedOSRMOptions = {
-      serviceUrl: "https://api.openrouteservice.org/v2/directions/driving-car",
-      timeout: 30 * 1000,
-      urlParameters: {
-        overview: "full",
-        geometries: "geojson",
+    const orsRouter: L.Routing.IRouter = {
+      route(
+        waypoints: L.Routing.Waypoint[],
+        callback: (err: any, routes: any[]) => void,
+        context: any,
+        options: any
+      ) {
+        const coords = waypoints.map((wp) => [wp.latLng.lng, wp.latLng.lat]);
+        const orsApiKey =
+          "5b3ce3597851110001cf624862ba9d9ce4314f088c7a3b8fec0f957e";
+
+        fetch(
+          "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${orsApiKey}`,
+            },
+            body: JSON.stringify({
+              coordinates: coords,
+              instructions: true,
+              instructions_format: "text",
+            }),
+          }
+        )
+          .then((res) => {
+            if (!res.ok) throw new Error("ORS error: " + res.status);
+            return res.json();
+          })
+          .then((data) => {
+            const routeCoords = data.features[0].geometry.coordinates.map(
+              ([lng, lat]: [number, number]) => L.latLng(lat, lng)
+            );
+
+            const segment = data.features[0].properties.segments?.[0];
+            const steps = segment?.steps || [];
+
+            const instructions = steps.map((step: any, index: number) => ({
+              type: step.type ?? 0,
+              distance: step.distance ?? 0,
+              time: step.duration ?? 0,
+              text: step.instruction ?? "",
+              index: step.way_points?.[0] ?? index,
+            }));
+
+            const summary = {
+              totalDistance: segment?.distance ?? 0,
+              totalTime: segment?.duration ?? 0,
+            };
+
+            const route: any = {
+              name: "Route",
+              summary: {
+                totalDistance: summary.totalDistance,
+                totalTime: summary.totalTime,
+              },
+              coordinates: routeCoords,
+              instructions: instructions,
+              inputWaypoints: waypoints,
+              actualWaypoints: waypoints.map((wp) => wp.latLng),
+              waypoints: waypoints.map((wp) => wp.latLng),
+              waypointIndices: [0, routeCoords.length - 1],
+              bounds: L.latLngBounds(routeCoords),
+              isSimplified: true,
+            };
+
+            callback.call(context, null, [route]);
+          })
+          .catch((err) => {
+            console.error("Routing error:", err.message);
+            callback.call(context, { message: err.message }, []);
+          });
       },
     };
 
-    // Custom ORS router
-    const orsRouter = L.Routing.osrmv1(orsRouterOptions);
+    const initializeMap = (lat: number, lng: number, showRoute: boolean) => {
+      const map = L.map(mapRef.current!).setView([lat, lng], zoom);
+      mapInstanceRef.current = map;
 
-    // Override route function to add ORS API key in Authorization header
-    orsRouter.route = function (
-      waypoints: L.Routing.Waypoint[],
-      callback: (err?: any, routes?: any[]) => void,
-      context?: any,
-      options?: any
-    ) {
-      const orsApiKey =
-        "5b3ce3597851110001cf624862ba9d9ce4314f088c7a3b8fec0f957e";
-      if (!orsApiKey) {
-        console.error("ORS API key is missing");
-        callback.call(context, { message: "Missing ORS API key" }, []);
-        return;
-      }
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map);
 
-      const coords = waypoints
-        .map((wp) => `${wp.latLng.lng},${wp.latLng.lat}`)
-        .join(";");
-      const queryParams = new URLSearchParams(
-        orsRouterOptions.urlParameters
-      ).toString();
-      const url = `${orsRouterOptions.serviceUrl}/${coords}?${queryParams}`;
+      if (showRoute) {
+        const start = L.latLng(lat, lng);
+        const end = L.latLng(center.lat, center.lng);
 
-      fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${orsApiKey}`,
-          Accept: "application/json",
-        },
-      })
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-          return response.json();
-        })
-        .then((data) => {
-          if (data.error) {
-            throw new Error(data.error.message || "ORS API error");
-          }
-          const route = {
-            name: "Route",
-            coordinates: data.routes[0].geometry.coordinates.map(
-              (c: [number, number]) => [c[1], c[0]]
-            ),
-            instructions: data.routes[0].segments
-              .map((s: any) =>
-                s.steps.map((step: any) => ({
-                  text: step.instruction,
-                  distance: step.distance,
-                  time: step.duration,
-                }))
-              )
-              .flat(),
-            summary: {
-              totalDistance: data.routes[0].summary.distance,
-              totalTime: data.routes[0].summary.duration,
-            },
-          };
+        routingControlRef.current = L.Routing.control({
+          waypoints: [start, end],
+          router: orsRouter,
+          routeWhileDragging: false,
+          showAlternatives: false,
+          lineOptions: {
+            styles: [{ color: "red", opacity: 0.8, weight: 5 }],
+            extendToWaypoints: true,
+            missingRouteTolerance: 0,
+          },
+          createMarker: (i, wp) =>
+            L.marker(wp.latLng, {
+              draggable: false,
+              icon: L.icon({
+                iconUrl:
+                  "https://i.postimg.cc/TwPdf2Tx/Pngtree-red-location-icon-sign-with-18125743.png",
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+              }),
+            }).bindPopup(i === 0 ? "Your Location" : "Pickup Location"),
+        } as ExtendedRoutingControlOptions).addTo(map);
 
-          callback.call(context, null, [route]);
-        })
-        .catch((error) => {
-          console.error("Routing error:", error.message);
-          callback.call(context, { message: error.message }, []);
+        routingControlRef.current.on("routesfound", (e) => {
+          console.log("Route found:", e.routes[0]);
         });
-    };
 
-    const initializeMap = (
-      lat: number,
-      lng: number,
-      showRoute: boolean = false
-    ) => {
-      if (mapRef.current && !mapInstanceRef.current) {
-        const map = L.map(mapRef.current).setView([lat, lng], zoom);
-        mapInstanceRef.current = map;
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution:
-            '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        }).addTo(map);
-
-        if (showRoute) {
-          // Add marker for user location
-          const userMarker = L.marker([lat, lng])
-            .addTo(map)
-            .bindPopup("Your Location")
-            .openPopup();
-
-          // Add marker for pickup location
-          const pickupMarker = L.marker([center.lat, center.lng])
-            .addTo(map)
-            .bindPopup("Pickup Location");
-
-          // Add routing control
-          if (routingControlRef.current) {
-            map.removeControl(routingControlRef.current);
-          }
-
-          const useORS =
-            "5b3ce3597851110001cf624862ba9d9ce4314f088c7a3b8fec0f957e";
-
-          routingControlRef.current = L.Routing.control({
-            waypoints: [L.latLng(lat, lng), L.latLng(center.lat, center.lng)],
-            router: useORS
-              ? orsRouter
-              : L.Routing.osrmv1({
-                  serviceUrl: "https://router.project-osrm.org/route/v1",
-                }),
-            routeWhileDragging: true,
-            showAlternatives: false,
-            lineOptions: {
-              styles: [{ color: "red", opacity: 0.7, weight: 5 }],
-              extendToWaypoints: true,
-              missingRouteTolerance: 0,
-            } as L.Routing.LineOptions,
-            createMarker: (i: number, wp: L.Routing.Waypoint) =>
-              L.marker(wp.latLng, {
-                draggable: true,
-                icon: L.icon({
-                  iconUrl:
-                    "https://i.postimg.cc/TwPdf2Tx/Pngtree-red-location-icon-sign-with-18125743.png",
-                  iconSize: [25, 41],
-                  iconAnchor: [12, 41],
-                  popupAnchor: [1, -34],
-                  shadowUrl: "",
-                  shadowSize: [41, 41],
-                }),
-              }).bindPopup(i === 0 ? "Your Location" : "Pickup Location"),
-          } as ExtendedRoutingControlOptions).addTo(map);
-
-          // Add error handling for routing
-          routingControlRef.current.on("routingerror", (e: any) => {
-            console.error("Routing error event:", e.error);
-            alert("Failed to calculate route. Check console for details.");
-          });
-
-          // Log when route is found
-          routingControlRef.current.on("routesfound", (e: any) => {});
-        } else {
-          // Show only pickup location marker
-          L.marker([center.lat, center.lng])
-            .addTo(map)
-            .bindPopup("Pickup Location")
-            .openPopup();
-        }
+        routingControlRef.current.on("routingerror", (e) => {
+          console.error("Routing error:", e.error);
+        });
+      } else {
+        // Show just pickup marker
+        L.marker([center.lat, center.lng])
+          .addTo(map)
+          .bindPopup("Pickup Location")
+          .openPopup();
       }
     };
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude: userLat, longitude: userLng } = position.coords;
-
-          initializeMap(userLat, userLng, true);
-        },
-        (error) => {
-          console.error("Geolocation error:", error.message);
-          initializeMap(center.lat, center.lng);
-        }
-      );
-    } else {
-      initializeMap(center.lat, center.lng);
-    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        initializeMap(
+          position.coords.latitude,
+          position.coords.longitude,
+          true
+        );
+      },
+      (err) => {
+        console.warn("Geolocation failed:", err.message);
+        initializeMap(center.lat, center.lng, false);
+      }
+    );
 
     return () => {
       if (mapInstanceRef.current) {
@@ -226,3 +186,5 @@ export function MapComponent({ center, zoom }: MapComponentProps) {
 
   return <div ref={mapRef} className="h-full w-full" />;
 }
+
+export default dynamic(() => Promise.resolve(MapComponent), { ssr: false });
